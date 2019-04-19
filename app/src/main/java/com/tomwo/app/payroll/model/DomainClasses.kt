@@ -1,4 +1,4 @@
-package com.tomwo.app.payroll.data.domain
+package com.tomwo.app.payroll.model
 
 
 abstract class PaymentMethod
@@ -14,13 +14,14 @@ class WeeklySchedule : PaymentSchedule()
 class MonthlySchedule : PaymentSchedule()
 class BiweeklySchedule : PaymentSchedule()
 
+
 abstract class PaymentClassification
 interface TimeCard
 interface SalesReceipt
 class NoClassification : PaymentClassification()
 data class SalariedClassification(val salary : Double) : PaymentClassification()
-data class HourlyClassification(val hourlyRate: Double, val timeCard: TimeCard) : PaymentClassification()
-data class CommissionedClassification(val commissionRate : Double, val salary: Float, val salesReceipt: SalesReceipt) : PaymentClassification()
+data class HourlyClassification(val hourlyRate: Double, val timeCard: TimeCard = object : TimeCard{}) : PaymentClassification()
+data class CommissionedClassification(val commissionRate : Double, val salary: Float, val salesReceipt: SalesReceipt = object : SalesReceipt{}) : PaymentClassification()
 
 abstract class Affiliation
 interface ServiceCharge

@@ -1,8 +1,6 @@
-package com.tomwo.app.payroll.data
+package com.tomwo.app.payroll.model
 
-import com.tomwo.app.payroll.data.domain.Employee
-
-class PayrollDatabase
+object PayrollDatabase
 {
     private val employees : MutableMap<Int, Employee> = mutableMapOf()
 

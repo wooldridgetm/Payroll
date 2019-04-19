@@ -2,6 +2,8 @@ package com.tomwo.app.payroll
 
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import com.tomwo.app.payroll.extensions.clazz
+import com.tomwo.app.payroll.extensions.debug
 
 class MainActivity : AppCompatActivity()
 {
@@ -9,5 +11,10 @@ class MainActivity : AppCompatActivity()
     {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        //debug<MainActivity>("Fx onCreate()")
+
+
+        debug(clazz(this))
     }
 }
