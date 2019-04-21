@@ -1,8 +1,6 @@
 package com.tomwo.app.payroll.extensions
 
 import android.util.Log
-import kotlin.jvm.internal.ClassBasedDeclarationContainer
-import kotlin.reflect.KClass
 
 /**
  * prevents the logger tags from exceeding Android's Limits
@@ -20,7 +18,10 @@ fun getTag(tag: String) = if (tag.length > MAX_LOG_TAG_LENGTH - LOG_PREFIX_LENGT
 
 //fun <T : Any> jClazz(t: KClass<T>) : Class<T> = t::class.java as Class<T>
 
-inline fun <reified T : Any> clazz(t: T) : String = t::class.java.simpleName
+inline fun <reified T : Any> clazzName(kClass: T) : String = kClass::class.java.simpleName
+inline fun <reified T : Any> clazzName(): String = T::class.java.simpleName
+
+inline fun <reified T: Any> clazz(): Class<T> = T::class.java
 
 
 /**
@@ -28,7 +29,7 @@ inline fun <reified T : Any> clazz(t: T) : String = t::class.java.simpleName
  */
 inline fun <reified T : Any> debug(msg: Any)
 {
-    Log.d(getTag(T::class.java.simpleName), msg.toString())
+    Log.d(getTag(clazzName<T>()), msg.toString())
 }
 
 /**
@@ -36,27 +37,27 @@ inline fun <reified T : Any> debug(msg: Any)
  */
 inline fun <reified T: Any> T.debug(msg: Any)
 {
-    Log.d(getTag(clazz(this)), msg.toString())
+    Log.d(getTag(clazzName<T>()), msg.toString())
 }
 
 inline fun <reified T: Any> T.verbose(msg: Any)
 {
-    Log.v(getTag(clazz(this)), msg.toString())
+    Log.v(getTag(clazzName<T>()), msg.toString())
 }
 
 inline fun <reified T: Any> T.info(msg: Any)
 {
-    Log.i(getTag(clazz(this)), msg.toString())
+    Log.i(getTag(clazzName<T>()), msg.toString())
 }
 
 inline fun <reified T: Any> T.warn(msg: Any, e: Throwable? = null)
 {
-    Log.w(getTag(clazz(this)), msg.toString(), e)
+    Log.w(getTag(clazzName<T>()), msg.toString(), e)
 }
 
 inline fun <reified T: Any> T.error(msg: Any, e: Throwable? = null)
 {
-    Log.e(getTag(clazz(this)), msg.toString() + e?.let { Log.getStackTraceString(it) }, e)
+    Log.e(getTag(clazzName<T>()), msg.toString() + e?.let { Log.getStackTraceString(it) }, e)
 }
 
 

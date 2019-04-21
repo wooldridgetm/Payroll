@@ -21,7 +21,7 @@ interface SalesReceipt
 class NoClassification : PaymentClassification()
 data class SalariedClassification(val salary : Double) : PaymentClassification()
 data class HourlyClassification(val hourlyRate: Double, val timeCard: TimeCard = object : TimeCard{}) : PaymentClassification()
-data class CommissionedClassification(val commissionRate : Double, val salary: Float, val salesReceipt: SalesReceipt = object : SalesReceipt{}) : PaymentClassification()
+data class CommissionedClassification(val commissionRate : Double, val salary: Double, val salesReceipt: SalesReceipt = object : SalesReceipt{}) : PaymentClassification()
 
 abstract class Affiliation
 interface ServiceCharge

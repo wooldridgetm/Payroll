@@ -48,16 +48,16 @@ class AddHourlyEmployee(empId: Int, name: String, address: String, private val h
     }
 }
 
-class AddCommissionedEmploye(empId: Int, name: String, address: String, private val salary: Double, private val commissionRate: Double) : AddEmployeeTransaction(empId, name, address)
+class AddCommissionedEmployee(empId: Int, name: String, address: String, private val salary: Double, private val commissionRate: Double) : AddEmployeeTransaction(empId, name, address)
 {
     override fun getClassification(): PaymentClassification
     {
-        TODO("not implemented")
+        return CommissionedClassification(this.commissionRate, this.salary)
     }
 
     override fun getSchedule(): PaymentSchedule
     {
-        TODO("not implemented")
+        return BiweeklySchedule()
     }
 
 }
