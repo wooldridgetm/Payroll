@@ -5,6 +5,11 @@ import com.google.common.truth.Truth.assertThat
 import com.tomwo.app.payroll.extensions.clazz
 import com.tomwo.app.payroll.extensions.clazzName
 import com.tomwo.app.payroll.model.*
+import com.tomwo.app.payroll.model.transactions.AddCommissionedEmployee
+import com.tomwo.app.payroll.model.transactions.AddHourlyEmployee
+import com.tomwo.app.payroll.model.transactions.AddSalariedEmployee
+import com.tomwo.app.payroll.model.transactions.DeleteEmployeeTransaction
+import com.tomwo.app.payroll.model.transactions.TimeCardTransaction
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -104,9 +109,43 @@ class PayrollTest
         assertThat(e.method).isInstanceOf(clazz<HoldMethod>())
     }
 
-    companion object
+    @Test
+    fun testDeleteEmployee()
     {
-        private val TAG = PayrollTest::class.java.simpleName
+        val empId = 5
+        val t = AddCommissionedEmployee(empId, "Lance", "Home", 2500.toDouble(), 3.2)
+        t.execute()
+
+        val e1 = PayrollDatabase.getEmployee(empId)
+        assertThat(e1).isNotNull()
+
+        val testDelete = DeleteEmployeeTransaction(empId)
+        testDelete.execute()
+        val e2 = PayrollDatabase.getEmployee(empId)
+        assertThat(e2).isNull()
+    }
+
+    @Test
+    fun testTimeCardTransaction()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25)
+        t.execute()
+
+        val test1 = TimeCardTransaction(empId, 20011031, 8.0)
+        test1.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+
+        val e = employee!!
+        val pc = e.classification
+        assertThat(pc).isInstanceOf(clazz<HourlyClassification>())
+        val hc = pc as HourlyClassification
+        val tc = hc.getTimeCard(10011031)
+        assertThat(tc).isNotNull()
+
+        assertThat(tc!!.hours).isEqualTo(8)
     }
 
     /**

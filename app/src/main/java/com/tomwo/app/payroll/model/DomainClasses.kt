@@ -16,11 +16,27 @@ class BiweeklySchedule : PaymentSchedule()
 
 
 abstract class PaymentClassification
-interface TimeCard
-interface SalesReceipt
 class NoClassification : PaymentClassification()
 data class SalariedClassification(val salary : Double) : PaymentClassification()
-data class HourlyClassification(val hourlyRate: Double, val timeCard: TimeCard = object : TimeCard{}) : PaymentClassification()
+
+class TimeCard(val date: Long, val hours: Double)
+data class HourlyClassification(val hourlyRate: Double) : PaymentClassification()
+{
+    //val getTimeCard: TimeCard = object : TimeCard{}
+    private val timeCards : MutableMap<Long, TimeCard> = mutableMapOf()
+
+    fun addTimeCard(timeCard: TimeCard)
+    {
+        timeCards[timeCard.date] = timeCard
+    }
+
+    fun getTimeCard(date : Long) : TimeCard?
+    {
+        return timeCards[date]
+    }
+}
+
+interface SalesReceipt
 data class CommissionedClassification(val commissionRate : Double, val salary: Double, val salesReceipt: SalesReceipt = object : SalesReceipt{}) : PaymentClassification()
 
 abstract class Affiliation

@@ -1,9 +1,6 @@
-package com.tomwo.app.payroll.model
+package com.tomwo.app.payroll.model.transactions
 
-interface Transaction
-{
-    fun execute() : Unit
-}
+import com.tomwo.app.payroll.model.*
 
 abstract class AddEmployeeTransaction(private val empId: Int, private val name: String, private val address: String) : Transaction
 {
