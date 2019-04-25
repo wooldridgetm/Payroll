@@ -5,11 +5,7 @@ import com.google.common.truth.Truth.assertThat
 import com.tomwo.app.payroll.extensions.clazz
 import com.tomwo.app.payroll.extensions.clazzName
 import com.tomwo.app.payroll.model.*
-import com.tomwo.app.payroll.model.transactions.AddCommissionedEmployee
-import com.tomwo.app.payroll.model.transactions.AddHourlyEmployee
-import com.tomwo.app.payroll.model.transactions.AddSalariedEmployee
-import com.tomwo.app.payroll.model.transactions.DeleteEmployeeTransaction
-import com.tomwo.app.payroll.model.transactions.TimeCardTransaction
+import com.tomwo.app.payroll.model.transactions.*
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
@@ -142,19 +138,136 @@ class PayrollTest
         val pc = e.classification
         assertThat(pc).isInstanceOf(clazz<HourlyClassification>())
         val hc = pc as HourlyClassification
-        val tc = hc.getTimeCard(10011031)
+        val tc = hc.getTimeCard(20011031)
         assertThat(tc).isNotNull()
 
-        assertThat(tc!!.hours).isEqualTo(8)
+        assertThat(tc!!.hours).isEqualTo(8.0)
     }
 
-    /**
-     * Sample Code - it's meant as a reference for future study
-     */
-    fun sampleUnitTest()
+    @Test
+    fun testSalesReceiptTransaction()
     {
-        assertEquals(4, 2+2)
-        val result = 2+2
-        assertThat(result).isEqualTo(4)
+        val empId = 10
+        val t = AddCommissionedEmployee(empId, "Sonya", "90210 Beverly Hills", 1_000.00, 2.3)
+        t.execute()
+
+        val test1 = SalesReceiptTransaction(empId, 20190422, 9.0)
+        test1.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+
+        val e = employee!!
+        val pc = e.classification
+        assertThat(pc).isInstanceOf(clazz<CommissionedClassification>())
+        val cc = pc as CommissionedClassification
+        val sr = cc.getSalesReceipt(20190422)
+        assertThat(sr).isNotNull()
+        assertThat(sr!!.amount).isEqualTo(9.0)
+    }
+
+    @Test
+    fun testAddServiceChargeTransaction()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "home", 15.25)
+        t.execute()
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        val e = employee!!
+
+        val af = UnionAffiliation(12.5)
+        e.affiliation = af
+
+        val memberId = 86 // Maxwell Smart
+        PayrollDatabase.addUnionMember(memberId, e)
+        val sct = ServiceChargeTransaction(memberId, 20011101, 12.95)
+        sct.execute()
+
+        val sc = af.getServiceCharge(20011101)
+        assertThat(sc).isNotNull()
+
+        assertThat(sc!!.amount).isEqualTo(12.95)
+    }
+
+    @Test
+    fun testChangeNameTransaction()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25)
+        t.execute()
+
+        val changeName = ChangeNameTransaction(empId, "Thomas")
+        changeName.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        assertThat(employee!!.name).isEqualTo("Thomas")
+    }
+
+    @Test
+    fun testChangeAddressTransaction()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25)
+        t.execute()
+        val changeAddress = ChangeAddressTransaction(empId, "152 Lakewood Drive")
+        changeAddress.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        assertThat(employee!!.address).isEqualTo("152 Lakewood Drive")
+    }
+
+    @Test
+    fun testChangeHourlyTransaction()
+    {
+        val empId = 3
+        val t = AddCommissionedEmployee(empId, "Lance", "Home", 2500.0, 3.2)
+        t.execute()
+
+        val test = ChangeHourlyTransaction(empId, 27.52)
+        test.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        val e = employee!!
+
+        val pc = e.classification
+        assertThat(pc).isNotNull()
+        assertThat(pc).isInstanceOf(clazz<HourlyClassification>())
+        val hc = pc as HourlyClassification
+        assertThat(hc.hourlyRate).isWithin(.001).of(27.52)
+
+        val ps = e.schedule
+        assertThat(ps).isNotNull()
+        assertThat(ps).isInstanceOf(clazz<WeeklySchedule>())
+    }
+
+    @Test
+    fun testChangeSalaryTransaction()
+    {
+        val empId = 100;
+        val t = AddHourlyEmployee(empId, "Thomas", "Home", 100.0)
+        t.execute()
+
+        // here's the test
+        val test = ChangeSalariedTransaction(empId, 1_000_000.0)
+        test.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        val e = employee!!
+
+        val pc = e.classification
+        assertThat(pc).isNotNull()
+        assertThat(pc).isInstanceOf(clazz<SalariedClassification>())
+        val sc = pc as SalariedClassification
+
+        assertThat(sc.salary).isWithin(0.001).of(1_000_000.0)
+
+        val ps = e.schedule
+        assertThat(ps).isNotNull()
+        assertThat(ps).isInstanceOf(clazz<MonthlySchedule>())
     }
 }

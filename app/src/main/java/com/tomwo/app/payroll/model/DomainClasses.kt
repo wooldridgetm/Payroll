@@ -1,12 +1,25 @@
 package com.tomwo.app.payroll.model
 
+data class Employee(val empId: Int, val address: String, val name: String,
+                    val classification: PaymentClassification,
+                    val schedule: PaymentSchedule,
+                    val method : PaymentMethod)
+{
+    var affiliation: Affiliation = NoAffiliation()
+}
 
+
+/**
+ * Payment Method
+ */
 abstract class PaymentMethod
 class HoldMethod : PaymentMethod()
 data class DirectMethod(val bank: String, val account: Double) : PaymentMethod()
 data class MailMethod(val address: String) : PaymentMethod()
 
 /**
+ * 1. Payment Schedule
+ *
  * NOTE: it is within [Transactions] that we associate this ([PaymentSchedule]) with [PaymentClassification]
  */
 abstract class PaymentSchedule
@@ -14,46 +27,70 @@ class WeeklySchedule : PaymentSchedule()
 class MonthlySchedule : PaymentSchedule()
 class BiweeklySchedule : PaymentSchedule()
 
-
+/**
+ * 2. Payment Type
+ */
 abstract class PaymentClassification
-class NoClassification : PaymentClassification()
+
+/**
+ * 2a. Salary
+ */
 data class SalariedClassification(val salary : Double) : PaymentClassification()
 
-class TimeCard(val date: Long, val hours: Double)
+/**
+ * 2b. Hourly - [HourlyClassification]
+ */
+data class TimeCard(val date: Long, val hours: Double)
 data class HourlyClassification(val hourlyRate: Double) : PaymentClassification()
 {
     //val getTimeCard: TimeCard = object : TimeCard{}
     private val timeCards : MutableMap<Long, TimeCard> = mutableMapOf()
-
     fun addTimeCard(timeCard: TimeCard)
     {
         timeCards[timeCard.date] = timeCard
     }
-
     fun getTimeCard(date : Long) : TimeCard?
     {
         return timeCards[date]
     }
 }
 
-interface SalesReceipt
-data class CommissionedClassification(val commissionRate : Double, val salary: Double, val salesReceipt: SalesReceipt = object : SalesReceipt{}) : PaymentClassification()
-
-abstract class Affiliation
-interface ServiceCharge
-class NoAffiliation : Affiliation()
-data class UnionAffiliation(val dues: Double, val serviceCharge : ServiceCharge) : Affiliation()
-
-data class Employee(val empId: Int, val address: String, val name: String,
-                    val classification: PaymentClassification,
-                    val schedule: PaymentSchedule,
-                    val method : PaymentMethod,
-                    val affiliation: Affiliation = NoAffiliation())
+/**
+ * 2c. Commissioned - [CommissionedClassification]
+ */
+data class SalesReceipt(val date : Long, val amount : Double)
+data class CommissionedClassification(val commissionRate : Double, val salary: Double) : PaymentClassification()
 {
-    companion object
+    private val salesReceipts : MutableMap<Long, SalesReceipt> = mutableMapOf()
+    fun addSalesReceipt(salesReceipt: SalesReceipt)
     {
-//        const val NO_EMPLOYEE = Employee(-1, "", "", )
+        salesReceipts[salesReceipt.date] = salesReceipt
+    }
+    fun getSalesReceipt(date: Long): SalesReceipt?
+    {
+        return salesReceipts[date]
     }
 }
+
+
+abstract class Affiliation
+class NoAffiliation : Affiliation()
+data class UnionAffiliation(val dues: Double) : Affiliation()
+{
+    private val serviceCharges : MutableMap<Long, ServiceCharge> = mutableMapOf()
+
+    fun addServiceCharge(charge: ServiceCharge)
+    {
+        serviceCharges[charge.date] = charge
+    }
+    fun getServiceCharge(date : Long) : ServiceCharge?
+    {
+        return serviceCharges[date]
+    }
+}
+
+
+data class ServiceCharge(val date: Long, val amount: Double)
+
 
 
