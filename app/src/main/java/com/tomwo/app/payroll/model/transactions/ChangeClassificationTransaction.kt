@@ -1,13 +1,6 @@
 package com.tomwo.app.payroll.model.transactions
 
-import com.tomwo.app.payroll.model.Employee
-import com.tomwo.app.payroll.model.HourlyClassification
-import com.tomwo.app.payroll.model.MonthlySchedule
-import com.tomwo.app.payroll.model.PaymentClassification
-import com.tomwo.app.payroll.model.PaymentSchedule
-import com.tomwo.app.payroll.model.PayrollDatabase
-import com.tomwo.app.payroll.model.SalariedClassification
-import com.tomwo.app.payroll.model.WeeklySchedule
+import com.tomwo.app.payroll.model.*
 
 abstract class ChangeClassificationTransaction(empId: Int) : ChangeEmployeeTransaction(empId)
 {
@@ -44,5 +37,18 @@ class ChangeSalariedTransaction(empId: Int, private val salary: Double) : Change
     override fun getSchedule(): PaymentSchedule
     {
         return MonthlySchedule()
+    }
+}
+
+class ChangeCommissionedTransaction(empId: Int, private val rate: Double, private val salary: Double) : ChangeClassificationTransaction(empId)
+{
+    override fun getClassification(): PaymentClassification
+    {
+        return CommissionedClassification(rate, salary)
+    }
+
+    override fun getSchedule(): PaymentSchedule
+    {
+        return BiweeklySchedule()
     }
 }

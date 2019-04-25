@@ -270,4 +270,31 @@ class PayrollTest
         assertThat(ps).isNotNull()
         assertThat(ps).isInstanceOf(clazz<MonthlySchedule>())
     }
+
+    @Test
+    fun testChangeCommissionedTransaction()
+    {
+        val empId = 967
+        val t = AddSalariedEmployee(empId, "Thomas", "home", 567_920.0)
+        t.execute()
+
+        val test = ChangeCommissionedTransaction(empId, 3.2, 123_000.0)
+        test.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        val e = employee!!
+
+        val pc = e.classification
+        assertThat(pc).isNotNull()
+        assertThat(pc).isInstanceOf(clazz<CommissionedClassification>())
+        val cc = pc as CommissionedClassification
+
+        assertThat(cc.commissionRate).isEqualTo(3.2)
+        assertThat(cc.salary).isEqualTo(123_000.0)
+
+        val ps = e.schedule
+        assertThat(ps).isNotNull()
+        assertThat(ps).isInstanceOf(clazz<BiweeklySchedule>())
+    }
 }
