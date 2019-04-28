@@ -14,7 +14,7 @@ data class Employee(val empId: Int, val address: String, val name: String,
  */
 abstract class PaymentMethod
 class HoldMethod : PaymentMethod()
-data class DirectMethod(val bank: String, val account: Double) : PaymentMethod()
+data class DirectMethod(val bank: String, val account: Float) : PaymentMethod()
 data class MailMethod(val address: String) : PaymentMethod()
 
 /**
@@ -35,13 +35,13 @@ abstract class PaymentClassification
 /**
  * 2a. Salary
  */
-data class SalariedClassification(val salary : Double) : PaymentClassification()
+data class SalariedClassification(val salary : Float) : PaymentClassification()
 
 /**
  * 2b. Hourly - [HourlyClassification]
  */
-data class TimeCard(val date: Long, val hours: Double)
-data class HourlyClassification(val hourlyRate: Double) : PaymentClassification()
+data class TimeCard(val date: Long, val hours: Float)
+data class HourlyClassification(val hourlyRate: Float) : PaymentClassification()
 {
     //val getTimeCard: TimeCard = object : TimeCard{}
     private val timeCards : MutableMap<Long, TimeCard> = mutableMapOf()
@@ -58,8 +58,8 @@ data class HourlyClassification(val hourlyRate: Double) : PaymentClassification(
 /**
  * 2c. Commissioned - [CommissionedClassification]
  */
-data class SalesReceipt(val date : Long, val amount : Double)
-data class CommissionedClassification(val commissionRate : Double, val salary: Double) : PaymentClassification()
+data class SalesReceipt(val date : Long, val amount : Float)
+data class CommissionedClassification(val commissionRate : Float, val salary: Float) : PaymentClassification()
 {
     private val salesReceipts : MutableMap<Long, SalesReceipt> = mutableMapOf()
     fun addSalesReceipt(salesReceipt: SalesReceipt)
@@ -75,7 +75,7 @@ data class CommissionedClassification(val commissionRate : Double, val salary: D
 
 abstract class Affiliation
 class NoAffiliation : Affiliation()
-data class UnionAffiliation(val dues: Double) : Affiliation()
+data class UnionAffiliation(val dues: Float) : Affiliation()
 {
     private val serviceCharges : MutableMap<Long, ServiceCharge> = mutableMapOf()
 
@@ -90,7 +90,7 @@ data class UnionAffiliation(val dues: Double) : Affiliation()
 }
 
 
-data class ServiceCharge(val date: Long, val amount: Double)
+data class ServiceCharge(val date: Long, val amount: Float)
 
 
 

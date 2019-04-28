@@ -14,7 +14,7 @@ abstract class ChangeClassificationTransaction(empId: Int) : ChangeEmployeeTrans
     abstract fun getSchedule(): PaymentSchedule
 }
 
-class ChangeHourlyTransaction(empId: Int, private val hourlyRate: Double) : ChangeClassificationTransaction(empId)
+class ChangeHourlyTransaction(empId: Int, private val hourlyRate: Float) : ChangeClassificationTransaction(empId)
 {
     override fun getClassification(): PaymentClassification
     {
@@ -27,7 +27,7 @@ class ChangeHourlyTransaction(empId: Int, private val hourlyRate: Double) : Chan
     }
 }
 
-class ChangeSalariedTransaction(empId: Int, private val salary: Double) : ChangeClassificationTransaction(empId)
+class ChangeSalariedTransaction(empId: Int, private val salary: Float) : ChangeClassificationTransaction(empId)
 {
     override fun getClassification(): PaymentClassification
     {
@@ -40,7 +40,7 @@ class ChangeSalariedTransaction(empId: Int, private val salary: Double) : Change
     }
 }
 
-class ChangeCommissionedTransaction(empId: Int, private val rate: Double, private val salary: Double) : ChangeClassificationTransaction(empId)
+class ChangeCommissionedTransaction(empId: Int, private val rate: Float, private val salary: Float) : ChangeClassificationTransaction(empId)
 {
     override fun getClassification(): PaymentClassification
     {

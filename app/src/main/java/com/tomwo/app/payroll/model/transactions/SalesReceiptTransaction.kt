@@ -4,7 +4,7 @@ import com.tomwo.app.payroll.model.CommissionedClassification
 import com.tomwo.app.payroll.model.PayrollDatabase
 import com.tomwo.app.payroll.model.SalesReceipt
 
-class SalesReceiptTransaction(private val empId: Int, private val date: Long, private val amount: Double) : Transaction
+class SalesReceiptTransaction(private val empId: Int, private val date: Long, private val amount: Float) : Transaction
 {
     override fun execute()
     {

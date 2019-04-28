@@ -4,7 +4,7 @@ import com.tomwo.app.payroll.model.PayrollDatabase
 import com.tomwo.app.payroll.model.ServiceCharge
 import com.tomwo.app.payroll.model.UnionAffiliation
 
-class ServiceChargeTransaction(private val memberId: Int, private val date: Long, private val amount: Double) : Transaction
+class ServiceChargeTransaction(private val memberId: Int, private val date: Long, private val amount: Float) : Transaction
 {
     override fun execute()
     {

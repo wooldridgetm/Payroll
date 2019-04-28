@@ -19,7 +19,7 @@ abstract class AddEmployeeTransaction(private val empId: Int, private val name: 
     abstract fun getSchedule() : PaymentSchedule
 }
 
-class AddSalariedEmployee(empId: Int, name: String, address: String, private val salary : Double) : AddEmployeeTransaction(empId, name, address)
+class AddSalariedEmployee(empId: Int, name: String, address: String, private val salary : Float) : AddEmployeeTransaction(empId, name, address)
 {
     override fun getClassification(): PaymentClassification
     {
@@ -32,7 +32,7 @@ class AddSalariedEmployee(empId: Int, name: String, address: String, private val
     }
 }
 
-class AddHourlyEmployee(empId: Int, name: String, address: String, private val hourlyRate: Double) : AddEmployeeTransaction(empId, name, address)
+class AddHourlyEmployee(empId: Int, name: String, address: String, private val hourlyRate: Float) : AddEmployeeTransaction(empId, name, address)
 {
     override fun getClassification(): PaymentClassification
     {
@@ -45,7 +45,7 @@ class AddHourlyEmployee(empId: Int, name: String, address: String, private val h
     }
 }
 
-class AddCommissionedEmployee(empId: Int, name: String, address: String, private val salary: Double, private val commissionRate: Double) : AddEmployeeTransaction(empId, name, address)
+class AddCommissionedEmployee(empId: Int, name: String, address: String, private val salary: Float, private val commissionRate: Float) : AddEmployeeTransaction(empId, name, address)
 {
     override fun getClassification(): PaymentClassification
     {

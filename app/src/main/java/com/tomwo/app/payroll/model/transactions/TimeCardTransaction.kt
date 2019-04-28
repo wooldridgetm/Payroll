@@ -4,7 +4,7 @@ import com.tomwo.app.payroll.model.HourlyClassification
 import com.tomwo.app.payroll.model.PayrollDatabase
 import com.tomwo.app.payroll.model.TimeCard
 
-class TimeCardTransaction(private val empId: Int, private val date : Long, private val hours: Double): Transaction
+class TimeCardTransaction(private val empId: Int, private val date : Long, private val hours: Float): Transaction
 {
     override fun execute()
     {
