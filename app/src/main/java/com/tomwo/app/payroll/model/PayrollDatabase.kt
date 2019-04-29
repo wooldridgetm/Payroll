@@ -9,7 +9,12 @@ object PayrollDatabase
 
     fun getEmployee(empId : Int) : Employee? = employees[empId]
 
-    fun getEmployeeByMemberId(memberId: Int) : Employee? = unionMembers[memberId]?.let { employees[it] }
+    fun getUnionMember(memberId: Int) : Employee? = unionMembers[memberId]?.let { employees[it] }
+
+    fun getAllEmployeeIds(): MutableList<Int>
+    {
+        return employees.keys.toMutableList()
+    }
 
     fun addEmployee(employee: Employee)
     {
@@ -28,7 +33,7 @@ object PayrollDatabase
         }
     }
 
-    fun deleteUnionMember(memberId: Int)
+    fun removeUnionMember(memberId: Int)
     {
         unionMembers.remove(memberId)?.let {
             debug("union member id $memberId was removed form the database.")

@@ -8,7 +8,7 @@ class ServiceChargeTransaction(private val memberId: Int, private val date: Long
 {
     override fun execute()
     {
-        val employee = PayrollDatabase.getEmployeeByMemberId(memberId)
+        val employee = PayrollDatabase.getUnionMember(memberId)
 
         employee?.let {e ->
             val af = e.affiliation

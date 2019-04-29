@@ -6,9 +6,10 @@ import com.tomwo.app.payroll.extensions.clazz
 import com.tomwo.app.payroll.extensions.clazzName
 import com.tomwo.app.payroll.model.*
 import com.tomwo.app.payroll.model.transactions.*
-import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import java.text.SimpleDateFormat
+import java.util.*
 
 class PayrollTest
 {
@@ -176,10 +177,10 @@ class PayrollTest
         assertThat(employee).isNotNull()
         val e = employee!!
 
-        val af = UnionAffiliation(12.5F)
+        val memberId = 86 // Maxwell Smart
+        val af = UnionAffiliation(86,12.5F)
         e.affiliation = af
 
-        val memberId = 86 // Maxwell Smart
         PayrollDatabase.addUnionMember(memberId, e)
         val sct = ServiceChargeTransaction(memberId, 20011101, 12.95F)
         sct.execute()
@@ -363,4 +364,111 @@ class PayrollTest
         assertThat(pm).isNotNull()
         assertThat(pm).isInstanceOf(clazz<HoldMethod>())
     }
+
+    @Test
+    fun testChangeUnionMemberTransaction()
+    {
+        val empId = 2
+        val memberId = 7734
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25F)
+        t.execute()
+
+        val cmt = ChangeUnionMemberTransaction(empId, memberId, 99.42F)
+        cmt.execute()
+
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        val e = employee!!
+
+        val af = e.affiliation
+        assertThat(af).isNotNull()
+        assertThat(af).isInstanceOf(clazz<UnionAffiliation>())
+
+        val uf = af as UnionAffiliation
+
+        assertThat(uf.dues).isWithin(.001F).of(99.42F)
+        val member = PayrollDatabase.getUnionMember(memberId)
+        assertThat(member).isNotNull()
+        assertThat(e == member)
+    }
+
+    @Test
+    fun testChangeUnaffiliatedTransaction()
+    {
+        val empId = 2
+        val memberId = 7734
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25F)
+        t.execute()
+
+        // change to UnionMember
+        val cmt = ChangeUnionMemberTransaction(empId, memberId, 99.42F)
+        cmt.execute()
+
+        // change to NoAffiliation
+        val test = ChangeUnaffiliatedTransaction(empId)
+        test.execute()
+
+        // assert that employee.affiliation = NoAffiliation
+        val employee = PayrollDatabase.getEmployee(empId)
+        assertThat(employee).isNotNull()
+        val e = employee!!
+
+        val noAf = e.affiliation
+        assertThat(noAf).isNotNull()
+        assertThat(noAf).isInstanceOf(clazz<NoAffiliation>())
+    }
+
+    @Test
+    fun testDates()
+    {
+        val format = SimpleDateFormat("MM/dd/yyyy")
+        val payDate = format.parse("11/30/2001")
+        val d1 = format.parse("11/30/2001")
+        val d2 = Date()
+
+        assertThat(d1).isEqualTo(payDate)
+        assertThat(d2).isNotEqualTo(payDate)
+    }
+
+    @Test
+    fun testPaySingleSalariedEmployee()
+    {
+        val empId = 1
+        val t = AddSalariedEmployee(empId, "Bob", "Home", 1000F)
+        t.execute()
+
+        val format = SimpleDateFormat("MM/dd/yyyy")
+        val payDate = format.parse("11/30/2001")
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+        val paycheck = pt.getPaycheck(empId)
+        assertThat(paycheck).isNotNull()
+
+        paycheck?.let {
+            assertThat(it.payDate).isEqualTo(payDate)
+            assertThat(it.grossPay).isWithin(0.001F).of(1000F)
+            assertThat(it.getField("Disposition")).isEqualTo("Hold")
+            assertThat(it.deductions).isWithin(0.001F).of(0.0F)
+            assertThat(it.netPay).isWithin(0.001F).of(1000F)
+        }
+    }
+
+    @Test
+    fun testPaySiingleSalariedEmployeeOnWrongDate()
+    {
+        val empId = 1
+        val test = AddSalariedEmployee(empId, "Bob", "home", 1000F)
+        test.execute()
+
+        val dateFormat = SimpleDateFormat("MM/dd/yyyy")
+        val payDate = dateFormat.parse("11/29/2001")
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        val pc = pt.getPaycheck(empId)
+        assertThat(pc).isNull()
+    }
+
+
 }

@@ -1,11 +1,23 @@
 package com.tomwo.app.payroll.model
 
+import java.util.*
+
 data class Employee(val empId: Int, val address: String, val name: String,
                     val classification: PaymentClassification,
                     val schedule: PaymentSchedule,
                     val method : PaymentMethod)
 {
     var affiliation: Affiliation = NoAffiliation()
+}
+
+data class Paycheck(val empId: Int, val payDate: Date, val grossPay: Float, val netPay: Float, val deductions: Float)
+{
+    fun getField(type: String): String
+    {
+        TODO("not implemented")
+    }
+
+
 }
 
 
@@ -75,7 +87,7 @@ data class CommissionedClassification(val commissionRate : Float, val salary: Fl
 
 abstract class Affiliation
 class NoAffiliation : Affiliation()
-data class UnionAffiliation(val dues: Float) : Affiliation()
+data class UnionAffiliation(val memberId: Int, val dues: Float) : Affiliation()
 {
     private val serviceCharges : MutableMap<Long, ServiceCharge> = mutableMapOf()
 
