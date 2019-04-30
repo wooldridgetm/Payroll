@@ -129,7 +129,8 @@ class PayrollTest
         val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25F)
         t.execute()
 
-        val test1 = TimeCardTransaction(empId, 20011031, 8.0F)
+        val date = dateFormat.parse("10/31/2001")
+        val test1 = TimeCardTransaction(empId, date, 8.0F)
         test1.execute()
 
         val employee = PayrollDatabase.getEmployee(empId)
@@ -139,7 +140,7 @@ class PayrollTest
         val pc = e.classification
         assertThat(pc).isInstanceOf(clazz<HourlyClassification>())
         val hc = pc as HourlyClassification
-        val tc = hc.getTimeCard(20011031)
+        val tc = hc.getTimeCard(date)
         assertThat(tc).isNotNull()
 
         assertThat(tc!!.hours).isEqualTo(8.0F)
@@ -430,6 +431,11 @@ class PayrollTest
         assertThat(d2).isNotEqualTo(payDate)
     }
 
+    /**
+     * Paying Employees
+     */
+   private val dateFormat = SimpleDateFormat("MM/dd/yyyy")
+
     @Test
     fun testPaySingleSalariedEmployee()
     {
@@ -437,8 +443,7 @@ class PayrollTest
         val t = AddSalariedEmployee(empId, "Bob", "Home", 1000F)
         t.execute()
 
-        val format = SimpleDateFormat("MM/dd/yyyy")
-        val payDate = format.parse("11/30/2001")
+        val payDate = dateFormat.parse("11/30/2001")
 
         val pt = PaydayTransaction(payDate)
         pt.execute()
@@ -455,13 +460,12 @@ class PayrollTest
     }
 
     @Test
-    fun testPaySiingleSalariedEmployeeOnWrongDate()
+    fun testPaySingleSalariedEmployeeOnWrongDate()
     {
         val empId = 1
         val test = AddSalariedEmployee(empId, "Bob", "home", 1000F)
         test.execute()
 
-        val dateFormat = SimpleDateFormat("MM/dd/yyyy")
         val payDate = dateFormat.parse("11/29/2001")
         val pt = PaydayTransaction(payDate)
         pt.execute()
@@ -469,6 +473,50 @@ class PayrollTest
         val pc = pt.getPaycheck(empId)
         assertThat(pc).isNull()
     }
+
+    private val payDate = dateFormat.parse("11/9/2001")
+
+    @Test
+    fun testPaySingleHourlyEmployeeNoTimeCards()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25F)
+        t.execute()
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        validateHourlyPaycheck(pt, empId, payDate,0.0f)
+    }
+
+    private fun validateHourlyPaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, pay: Float)
+    {
+        val pc = pt.getPaycheck(empId)
+        assertThat(pc).isNotNull()
+
+        pc?.let {
+            assertThat(it.payDate).isEqualTo(payDate)
+            assertThat(it.grossPay).isWithin(0.001f).of(pay)
+            assertThat(it.getField("Disposition")).isEqualTo("Hold")
+            assertThat(it.deductions).isWithin(0.001f).of(0.0f)
+            assertThat(it.netPay).isWithin(0.001f).of(pay)
+        }
+    }
+
+    @Test
+    fun testPaySingleHourlyEmployeeOneTimeCard()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "home", 15.25f)
+        t.execute()
+
+        val tc = TimeCardTransaction(empId=empId, payDate=payDate, hours=2f)
+        tc.execute()
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+        validateHourlyPaycheck(pt, empId, payDate, 30.5f)
+    }
+
 
 
 }
