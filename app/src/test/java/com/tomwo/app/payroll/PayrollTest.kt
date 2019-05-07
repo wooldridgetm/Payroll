@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.common.truth.Truth.assertThat
 import com.tomwo.app.payroll.extensions.clazz
 import com.tomwo.app.payroll.extensions.clazzName
+import com.tomwo.app.payroll.extensions.debug
 import com.tomwo.app.payroll.model.*
 import com.tomwo.app.payroll.model.transactions.*
 import org.junit.Before
@@ -129,7 +130,7 @@ class PayrollTest
         val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25F)
         t.execute()
 
-        val date = dateFormat.parse("10/31/2001")
+        val date = df.parse("10/31/2001")
         val test1 = TimeCardTransaction(empId, date, 8.0F)
         test1.execute()
 
@@ -249,7 +250,7 @@ class PayrollTest
     @Test
     fun testChangeSalaryTransaction()
     {
-        val empId = 100;
+        val empId = 100
         val t = AddHourlyEmployee(empId, "Thomas", "Home", 100F)
         t.execute()
 
@@ -434,16 +435,12 @@ class PayrollTest
     /**
      * Paying Employees
      */
-   private val dateFormat = SimpleDateFormat("MM/dd/yyyy")
-
     @Test
     fun testPaySingleSalariedEmployee()
     {
         val empId = 1
         val t = AddSalariedEmployee(empId, "Bob", "Home", 1000F)
         t.execute()
-
-        val payDate = dateFormat.parse("11/30/2001")
 
         val pt = PaydayTransaction(payDate)
         pt.execute()
@@ -466,7 +463,6 @@ class PayrollTest
         val test = AddSalariedEmployee(empId, "Bob", "home", 1000F)
         test.execute()
 
-        val payDate = dateFormat.parse("11/29/2001")
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
@@ -474,33 +470,20 @@ class PayrollTest
         assertThat(pc).isNull()
     }
 
-    private val payDate = dateFormat.parse("11/9/2001")
-
+    /**
+     * Hourly Employees
+     */
     @Test
     fun testPaySingleHourlyEmployeeNoTimeCards()
     {
         val empId = 2
-        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25F)
-        t.execute()
+        val test = AddHourlyEmployee(empId, "Bill", "Home", 15.25F)
+        test.execute()
 
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
         validateHourlyPaycheck(pt, empId, payDate,0.0f)
-    }
-
-    private fun validateHourlyPaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, pay: Float)
-    {
-        val pc = pt.getPaycheck(empId)
-        assertThat(pc).isNotNull()
-
-        pc?.let {
-            assertThat(it.payDate).isEqualTo(payDate)
-            assertThat(it.grossPay).isWithin(0.001f).of(pay)
-            assertThat(it.getField("Disposition")).isEqualTo("Hold")
-            assertThat(it.deductions).isWithin(0.001f).of(0.0f)
-            assertThat(it.netPay).isWithin(0.001f).of(pay)
-        }
     }
 
     @Test
@@ -512,11 +495,122 @@ class PayrollTest
 
         val tc = TimeCardTransaction(empId=empId, payDate=payDate, hours=2f)
         tc.execute()
-        val pt = PaydayTransaction(payDate)
+
+
+        val pt = PaydayTransaction(df.parse("11/9/2001"))
         pt.execute()
         validateHourlyPaycheck(pt, empId, payDate, 30.5f)
     }
 
+    @Test
+    fun testPaySingleHourlyEmployeeOvertimeOneTimeCard()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25f)
+        t.execute()
+
+        val tc = TimeCardTransaction(empId=empId, payDate=payDate, hours=9.0f)
+        tc.execute()
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+        validateHourlyPaycheck(pt, empId, payDate, (8 + 1.5f) * 15.25f)
+    }
+
+    @Test
+    fun testPaySingleHourlyEmployeeOnWrongDate()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "bill", "Home", 15.25f)
+        t.execute()
+
+        val payDate = df.parse("11/8/2001")
+        val tc = TimeCardTransaction(empId, payDate, 9.0f)
+        tc.execute()
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        val pc = pt.getPaycheck(empId)
+        assertThat(pc).isNull()
+    }
+
+    @Test
+    fun testPaySingleHourlyEmployeeTwoTimeCards()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25f)
+        t.execute()
+
+        val tc1 = TimeCardTransaction(empId, payDate, 2.0f)
+        val tc2 = TimeCardTransaction(empId, df.parse("11/8/2001"), 5.0f)
+        tc1.execute()
+        tc2.execute()
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        validateHourlyPaycheck(pt, empId, payDate, 7*15.25f)
+    }
+
+    @Test
+    fun testPaySingleHourlyEmployeeWithTimeCardsSpanningTwoPayPeriods()
+    {
+        val empId = 2
+        val t = AddHourlyEmployee(empId, "Bill", "Home", 15.25f)
+        t.execute()
+
+        val dateInPreviousPayPeriod = df.parse("11/2/2001")
+
+        val tc = TimeCardTransaction(empId, payDate, 2.0f)
+        tc.execute()
+
+        val tc2 = TimeCardTransaction(empId, dateInPreviousPayPeriod, 5.0f)
+        tc2.execute()
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        validateHourlyPaycheck(pt, empId, payDate, 2*15.25f)
+    }
+
+    @Test
+    fun testDotwInMonth()
+    {
+        val date = df.parse("5/10/2019")
+        val cal = Calendar.getInstance().apply {
+            time = date
+        }
+        val dotwInMonth = cal.get(Calendar.DAY_OF_WEEK_IN_MONTH)
+        debug(dotwInMonth)
+    }
 
 
+    // utility function for testing hourly employees!
+    private fun validateHourlyPaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, pay: Float)
+    {
+        val pc = pt.getPaycheck(empId)
+        assertThat(pc).isNotNull()
+
+        pc?.let {
+            assertThat(it.payDate).isEqualTo(payDate)
+            assertThat(it.grossPay).isWithin(slop).of(pay)
+            assertThat(it.getField("Disposition")).isEqualTo("Hold")
+            assertThat(it.deductions).isWithin(slop).of(0.0f)
+            assertThat(it.netPay).isWithin(slop).of(pay)
+        }
+    }
+
+
+    /**
+     * companion object - static fields
+     */
+    companion object
+    {
+        private const val slop: Float = 0.001f
+
+        // Testing Pay
+        private val df = SimpleDateFormat("MM/dd/yyyy")
+        private val payDate = df.parse("11/9/2001")
+    }
 }

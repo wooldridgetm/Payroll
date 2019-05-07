@@ -23,13 +23,13 @@ class PaydayTransaction(private val payDate: Date) : Transaction
                     payChecks[empId] = pc
                     it.payDay(pc)
                 }
-            }
+            } ?: debug("employee $empId is not in the PayrollDatabase")
         } // loop
     }
 
     fun getPaycheck(empId: Int) : Paycheck?
     {
-        if (payChecks.contains(empId))
+        if (!payChecks.contains(empId))
         {
             debug("employee $empId doesn't have a paycheck!")
         }

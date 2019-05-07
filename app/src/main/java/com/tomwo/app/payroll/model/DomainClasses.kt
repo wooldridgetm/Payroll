@@ -1,22 +1,21 @@
 package com.tomwo.app.payroll.model
 
 import com.tomwo.app.payroll.extensions.debug
+import java.lang.IllegalArgumentException
 import java.text.SimpleDateFormat
+import java.time.YearMonth
 import java.util.*
 
-data class Employee(val empId: Int, val address: String, val name: String,
-                    val classification: PaymentClassification,
-                    val schedule: PaymentSchedule,
-                    val method : PaymentMethod)
+data class Employee(val empId: Int, val address: String, val name: String, val classification: PaymentClassification, val schedule: PaymentSchedule, val method: PaymentMethod)
 {
     var affiliation: Affiliation = NoAffiliation()
 
-    fun isPayDate(d : Date) : Boolean
+    fun isPayDate(d: Date): Boolean
     {
-        return schedule.isPayDate(d)
+        return schedule.isPayDay(d)
     }
 
-    fun payDay(pc : Paycheck)
+    fun payDay(pc: Paycheck)
     {
         val grossPay = classification.calculatePay(pc)
         val deductions = affiliation.calculateDeductions(pc)
@@ -36,7 +35,19 @@ data class Paycheck(val payDate: Date, val empId: Int)
 
     fun getField(type: String): String
     {
-        TODO("not implemented")
+        return when (type)
+        {
+            "Disposition" -> PayrollDatabase.getEmployee(empId)?.let { e ->
+                when (e.method)
+                {
+                    is HoldMethod -> "Hold"
+                    is DirectMethod -> "Direct"
+                    is MailMethod -> "Mail"
+                    else -> throw IllegalArgumentException("${e.method} isn't supported!")
+                }
+            } ?: throw IllegalStateException("Employee not found")
+            else -> throw IllegalArgumentException("Paycheck getField(type=$type) isn't supported!")
+        }
     }
 }
 
@@ -80,11 +91,28 @@ data class MailMethod(val address: String) : PaymentMethod()
  */
 abstract class PaymentSchedule
 {
-    abstract fun isPayDate(payDate : Date): Boolean
+    abstract fun isPayDay(payDate: Date): Boolean
 }
+
+class MonthlySchedule : PaymentSchedule()
+{
+    override fun isPayDay(payDate: Date): Boolean = isLastDayOfMonth(payDate)
+
+    private fun isLastDayOfMonth(d: Date): Boolean
+    {
+        val cal = Calendar.getInstance().apply {
+            time = d
+        }
+        val m1 = cal.get(Calendar.MONTH)
+        cal.add(Calendar.DAY_OF_MONTH, 1)
+        val m2 = cal.get(Calendar.MONTH)
+        return (m1 != m2)
+    }
+}
+
 class WeeklySchedule : PaymentSchedule()
 {
-    override fun isPayDate(payDate: Date): Boolean
+    override fun isPayDay(payDate: Date): Boolean
     {
         // Locale.getDefault(Locale.Category.FORMAT)
         val dotw = SimpleDateFormat("EE", Locale.US).format(payDate)
@@ -92,24 +120,22 @@ class WeeklySchedule : PaymentSchedule()
         return dotw == "Fri"
     }
 }
+
 class BiweeklySchedule : PaymentSchedule()
 {
-    override fun isPayDate(payDate: Date): Boolean
+    override fun isPayDay(payDate: Date): Boolean
     {
-        TODO("not implemented")
-    }
-}
-class MonthlySchedule : PaymentSchedule()
-{
-    override fun isPayDate(payDate: Date) : Boolean = isLastDayOfMonth(payDate)
+        val cal = Calendar.getInstance().apply {
+            time = payDate
+        }
 
-    private fun isLastDayOfMonth(d: Date) : Boolean
-    {
-        val cal = Calendar.getInstance()
-        val m1 = cal.get(Calendar.MONTH)
-        cal.add(Calendar.DAY_OF_MONTH, 1)
-        val m2 = cal.get(Calendar.MONTH)
-        return (m1 != m2)
+        // 1 - 7
+        // 8 - 14
+        // 15 - 21
+        // 22 - 28
+
+        val dotwInMonth = cal.get(Calendar.DAY_OF_WEEK_IN_MONTH)
+        return (dotwInMonth == 12 || dotwInMonth == 26)
     }
 }
 
@@ -119,17 +145,17 @@ class MonthlySchedule : PaymentSchedule()
  */
 abstract class PaymentClassification
 {
-    abstract fun calculatePay(pc: Paycheck) : Float
+    abstract fun calculatePay(pc: Paycheck): Float
 }
 
 /**
  * 2a. Salary
  */
-data class SalariedClassification(val salary : Float) : PaymentClassification()
+data class SalariedClassification(val salary: Float) : PaymentClassification()
 {
     override fun calculatePay(pc: Paycheck): Float
     {
-        TODO("not implemented")
+        return salary
     }
 }
 
@@ -137,39 +163,82 @@ data class SalariedClassification(val salary : Float) : PaymentClassification()
  * 2b. Hourly - [HourlyClassification]
  */
 data class TimeCard(val date: Date, val hours: Float)
+
 data class HourlyClassification(val hourlyRate: Float) : PaymentClassification()
 {
     //val getTimeCard: TimeCard = object : TimeCard{}
-    private val timeCards : MutableMap<Date, TimeCard> = mutableMapOf()
+    private val timeCards: MutableMap<Date, TimeCard> = mutableMapOf()
+
     fun addTimeCard(timeCard: TimeCard)
     {
         timeCards[timeCard.date] = timeCard
     }
-    fun getTimeCard(date : Date) : TimeCard?
+
+    fun getTimeCard(date: Date): TimeCard?
     {
         return timeCards[date]
     }
+
     override fun calculatePay(pc: Paycheck): Float
     {
-        TODO("not implemented")
+        var totalPay = 0f
+        val payPeriod = pc.payDate
+
+        timeCards.forEach {
+            val tc = it.value
+            if (isInPayPeriod(tc, payPeriod))
+            {
+                totalPay += calculatePayForTimeCard(tc)
+            }
+        }
+        return totalPay
+    }
+
+    private fun isInPayPeriod(tc: TimeCard, payPeriod: Date): Boolean
+    {
+        val cal = Calendar.getInstance()
+        cal.time = payPeriod
+        cal.add(Calendar.DAY_OF_MONTH, -5)
+
+        val payPeriodStartDate = cal.time
+        val payPeriodEndDate = payPeriod
+
+        val timeCardDate = tc.date
+
+        // this doesn't catch if timeCardDate is exactly equal to 1 of the edge cases
+        //return timeCardDate.after(payPeriodStartDate) && timeCardDate.before(payPeriodEndDate)
+
+        // this will work even if timeCardDate is equal to one of the edge cases!
+        return !(timeCardDate.before(payPeriodStartDate) || timeCardDate.after(payPeriodEndDate))
+    }
+
+    private fun calculatePayForTimeCard(tc: TimeCard): Float
+    {
+        val hours = tc.hours
+        val overtime = maxOf(0.0f, hours - 8.0f)
+        val straightTime = hours - overtime
+        return straightTime * hourlyRate + overtime * hourlyRate * 1.5f
     }
 }
 
 /**
  * 2c. Commissioned - [CommissionedClassification]
  */
-data class SalesReceipt(val date : Long, val amount : Float)
-data class CommissionedClassification(val commissionRate : Float, val salary: Float) : PaymentClassification()
+data class SalesReceipt(val date: Long, val amount: Float)
+
+data class CommissionedClassification(val commissionRate: Float, val salary: Float) : PaymentClassification()
 {
-    private val salesReceipts : MutableMap<Long, SalesReceipt> = mutableMapOf()
+    private val salesReceipts: MutableMap<Long, SalesReceipt> = mutableMapOf()
     fun addSalesReceipt(salesReceipt: SalesReceipt)
     {
         salesReceipts[salesReceipt.date] = salesReceipt
     }
+
     fun getSalesReceipt(date: Long): SalesReceipt?
     {
         return salesReceipts[date]
     }
+
     override fun calculatePay(pc: Paycheck): Float
     {
         TODO("not implemented")
@@ -179,24 +248,28 @@ data class CommissionedClassification(val commissionRate : Float, val salary: Fl
 
 abstract class Affiliation
 {
-    abstract fun calculateDeductions(pc: Paycheck) : Float
+    abstract fun calculateDeductions(pc: Paycheck): Float
 }
+
 class NoAffiliation : Affiliation()
 {
     override fun calculateDeductions(pc: Paycheck) = 0F
 }
+
 data class UnionAffiliation(val memberId: Int, val dues: Float) : Affiliation()
 {
-    private val serviceCharges : MutableMap<Long, ServiceCharge> = mutableMapOf()
+    private val serviceCharges: MutableMap<Long, ServiceCharge> = mutableMapOf()
 
     fun addServiceCharge(charge: ServiceCharge)
     {
         serviceCharges[charge.date] = charge
     }
-    fun getServiceCharge(date : Long) : ServiceCharge?
+
+    fun getServiceCharge(date: Long): ServiceCharge?
     {
         return serviceCharges[date]
     }
+
     override fun calculateDeductions(pc: Paycheck): Float
     {
         TODO("not implemented")
