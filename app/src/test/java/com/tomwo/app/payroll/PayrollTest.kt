@@ -602,11 +602,55 @@ class PayrollTest
     }
 
 
+    private enum class DOTW { Sun, Mon, Tues, Wed, Thurs, Fri, Sat }
+    private val days = arrayOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
+
+    @Test
+    fun randomTest()
+    {
+        val dateFormat = SimpleDateFormat("MM/dd/yyyy hh:mm:ss a", Locale.US)
+        val cal = Calendar.getInstance()
+        // should be today
+        val dateStr1 = dateFormat.format(cal.time)
+//        debug("dateTime.now() = $dateStr1")
+
+        // should be May 1st
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        val dateStr2 = dateFormat.format(cal.time)
+        debug("DAY_ONE_OF_WEEK_IN_MONTH = $dateStr2")
+
+        var num2Add = 0
+
+        when(val dotw = cal.get(Calendar.DAY_OF_WEEK))
+        {
+            in Calendar.SUNDAY..Calendar.THURSDAY -> {
+                debug("Sunday through Thursday")
+                num2Add = 6 - dotw
+            }
+            Calendar.FRIDAY -> {
+                debug("Friday")
+                num2Add = 0
+            }
+            Calendar.SATURDAY -> {
+                // special case - need to add
+                debug("Sat")
+                num2Add = Calendar.SATURDAY
+            }
+        }
+
+        cal.time = Date()
+        cal.add(Calendar.DAY_OF_MONTH, num2Add)
+        val date3 = dateFormat.format(cal.time)
+        debug("1st friday of month is $date3")
+    }
+
+
     /**
      * companion object - static fields
      */
     companion object
     {
+
         private const val slop: Float = 0.001f
 
         // Testing Pay

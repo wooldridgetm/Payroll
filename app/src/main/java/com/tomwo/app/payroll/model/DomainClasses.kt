@@ -123,19 +123,22 @@ class WeeklySchedule : PaymentSchedule()
 
 class BiweeklySchedule : PaymentSchedule()
 {
+    private val arr = arrayOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
+    enum class DOTW { Sun, Mon, Tues, Wed, Thurs, Fri, Sat }
+
     override fun isPayDay(payDate: Date): Boolean
     {
         val cal = Calendar.getInstance().apply {
             time = payDate
         }
 
-        // 1 - 7
-        // 8 - 14
-        // 15 - 21
-        // 22 - 28
+        // 1st, find the payDays..
+        cal.set(Calendar.DAY_OF_WEEK_IN_MONTH, 1)
+        val dateFormat = SimpleDateFormat("MM/dd/yyyy hh:mm:ss a", Locale.US)
+        val dateStr = dateFormat.format(cal.time)
+        //val dotw = cal.get(Calendar.DAY_OF_WEEK)
 
-        val dotwInMonth = cal.get(Calendar.DAY_OF_WEEK_IN_MONTH)
-        return (dotwInMonth == 12 || dotwInMonth == 26)
+        TODO("needs implementation")
     }
 }
 
