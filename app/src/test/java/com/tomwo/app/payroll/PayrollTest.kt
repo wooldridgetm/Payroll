@@ -154,7 +154,9 @@ class PayrollTest
         val t = AddCommissionedEmployee(empId, "Sonya", "90210 Beverly Hills", 1_000F, 2.3F)
         t.execute()
 
-        val test1 = SalesReceiptTransaction(empId, 20190422, 9.0F)
+        val date = df.parse("4/22/2019")
+
+        val test1 = SalesReceiptTransaction(empId, date, 9.0F)
         test1.execute()
 
         val employee = PayrollDatabase.getEmployee(empId)
@@ -164,7 +166,7 @@ class PayrollTest
         val pc = e.classification
         assertThat(pc).isInstanceOf(clazz<CommissionedClassification>())
         val cc = pc as CommissionedClassification
-        val sr = cc.getSalesReceipt(20190422)
+        val sr = cc.getSalesReceipt(date)
         assertThat(sr).isNotNull()
         assertThat(sr!!.amount).isEqualTo(9.0F)
     }
@@ -442,6 +444,7 @@ class PayrollTest
         val t = AddSalariedEmployee(empId, "Bob", "Home", 1000F)
         t.execute()
 
+        val payDate = df.parse("11/30/2001")
         val pt = PaydayTransaction(payDate)
         pt.execute()
         val paycheck = pt.getPaycheck(empId)
@@ -463,7 +466,7 @@ class PayrollTest
         val test = AddSalariedEmployee(empId, "Bob", "home", 1000F)
         test.execute()
 
-        val pt = PaydayTransaction(payDate)
+        val pt = PaydayTransaction(df.parse("11/9/2001"))
         pt.execute()
 
         val pc = pt.getPaycheck(empId)
@@ -574,17 +577,6 @@ class PayrollTest
         validateHourlyPaycheck(pt, empId, payDate, 2*15.25f)
     }
 
-    @Test
-    fun testDotwInMonth()
-    {
-        val date = df.parse("5/10/2019")
-        val cal = Calendar.getInstance().apply {
-            time = date
-        }
-        val dotwInMonth = cal.get(Calendar.DAY_OF_WEEK_IN_MONTH)
-        debug(dotwInMonth)
-    }
-
 
     // utility function for testing hourly employees!
     private fun validateHourlyPaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, pay: Float)
@@ -601,47 +593,89 @@ class PayrollTest
         }
     }
 
+    private fun validateCommissionPaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, pay: Float) = validateHourlyPaycheck(pt, empId, payDate, pay)
 
-    private enum class DOTW { Sun, Mon, Tues, Wed, Thurs, Fri, Sat }
-    private val days = arrayOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
+    /**
+     * Commissioned Employees
+     */
+    @Test
+    fun biweeklyTest()
+    {
+        val bs = BiweeklySchedule()
+        val isPayDay = bs.isPayDay(df.parse("2/25/2005"))
+        debug("is 2/25/2005 payDay for Commissioned employees? $isPayDay")
+    }
 
     @Test
-    fun randomTest()
+    fun testPayNoSalesReceiptCommissionedEmployees()
     {
-        val dateFormat = SimpleDateFormat("MM/dd/yyyy hh:mm:ss a", Locale.US)
-        val cal = Calendar.getInstance()
-        // should be today
-        val dateStr1 = dateFormat.format(cal.time)
-//        debug("dateTime.now() = $dateStr1")
+        val empId = 2
+        val t = AddCommissionedEmployee(empId, "Thomas", "Home", 567_922f, 2.5f)
+        t.execute()
 
-        // should be May 1st
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        val dateStr2 = dateFormat.format(cal.time)
-        debug("DAY_ONE_OF_WEEK_IN_MONTH = $dateStr2")
+        val payDate = df.parse("2/25/2005")
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
 
-        var num2Add = 0
+        validateCommissionPaycheck(pt, empId, payDate, 567_922f)
+    }
 
-        when(val dotw = cal.get(Calendar.DAY_OF_WEEK))
-        {
-            in Calendar.SUNDAY..Calendar.THURSDAY -> {
-                debug("Sunday through Thursday")
-                num2Add = 6 - dotw
-            }
-            Calendar.FRIDAY -> {
-                debug("Friday")
-                num2Add = 0
-            }
-            Calendar.SATURDAY -> {
-                // special case - need to add
-                debug("Sat")
-                num2Add = Calendar.SATURDAY
-            }
-        }
+    @Test
+    fun `testPay NoSalesReceipt FirstDayOfMonthOnFriday CommissionedEmployee`()
+    {
+        val empId = 2
+        val t = AddCommissionedEmployee(empId, "Thomas", "Home", 567_922f, 2.5f)
+        t.execute()
 
-        cal.time = Date()
-        cal.add(Calendar.DAY_OF_MONTH, num2Add)
-        val date3 = dateFormat.format(cal.time)
-        debug("1st friday of month is $date3")
+        val payDate = df.parse("11/8/2019")
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        validateCommissionPaycheck(pt, empId, payDate, 567_922f)
+    }
+
+    @Test
+    fun `testPay SingleSalesReceipt FirstDayOfMonthOnSat CommissionedEmployee`()
+    {
+        val empId = 2
+        val t = AddCommissionedEmployee(empId, "Thomas", "Home", 4_000f, 3.4f)
+        t.execute()
+
+        val payDate = df.parse("6/14/2019")  // sat
+        val sr = SalesReceiptTransaction(empId, df.parse("6/12/2019"), 1_000f)
+        sr.execute()
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        validateCommissionPaycheck(pt, empId, payDate, 4_000f + (1_000f * 3.4f))
+    }
+
+    @Test
+    fun `testPay SingleSalesReceipt FirstDayOfMonthOnSun CommissionedEmployee`()
+    {
+        val empId = 2
+        val t = AddCommissionedEmployee(empId, "Thomas", "Home", 4_000f, 3.4f)
+        t.execute()
+
+        // 9/01/2019 is Sunday
+        val payDate = df.parse("9/13/2019")
+        val sr = SalesReceiptTransaction(empId, df.parse("9/12/2019"), 1_000f)
+        sr.execute()
+
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        validateCommissionPaycheck(pt, empId, payDate, 4_000f + (1_000f * 3.4f))
+    }
+
+    /**
+     * Salaried Union Member Dues
+     */
+    @Test
+    fun `test Salaried UnionMemberDues`()
+    {
+        val empId = 1
     }
 
 

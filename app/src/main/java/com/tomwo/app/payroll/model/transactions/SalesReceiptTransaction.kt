@@ -3,8 +3,9 @@ package com.tomwo.app.payroll.model.transactions
 import com.tomwo.app.payroll.model.CommissionedClassification
 import com.tomwo.app.payroll.model.PayrollDatabase
 import com.tomwo.app.payroll.model.SalesReceipt
+import java.util.Date
 
-class SalesReceiptTransaction(private val empId: Int, private val date: Long, private val amount: Float) : Transaction
+class SalesReceiptTransaction(private val empId: Int, private val date: Date, private val amount: Float) : Transaction
 {
     override fun execute()
     {

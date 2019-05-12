@@ -6,7 +6,7 @@ import android.util.Log
  * prevents the logger tags from exceeding Android's Limits
  */
 private const val MAX_LOG_TAG_LENGTH = 23
-private const val LOG_PREFIX         = "TOM_"
+private const val LOG_PREFIX         = ""
 private const val LOG_PREFIX_LENGTH  = LOG_PREFIX.length
 
 /**

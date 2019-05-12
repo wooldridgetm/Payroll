@@ -3,7 +3,6 @@ package com.tomwo.app.payroll.model
 import com.tomwo.app.payroll.extensions.debug
 import java.lang.IllegalArgumentException
 import java.text.SimpleDateFormat
-import java.time.YearMonth
 import java.util.*
 
 data class Employee(val empId: Int, val address: String, val name: String, val classification: PaymentClassification, val schedule: PaymentSchedule, val method: PaymentMethod)
@@ -23,7 +22,6 @@ data class Employee(val empId: Int, val address: String, val name: String, val c
         pc.grossPay = grossPay
         pc.deductions = deductions
         pc.netPay = netPay
-
     }
 }
 
@@ -123,9 +121,6 @@ class WeeklySchedule : PaymentSchedule()
 
 class BiweeklySchedule : PaymentSchedule()
 {
-    private val arr = arrayOf(Calendar.SUNDAY, Calendar.MONDAY, Calendar.TUESDAY, Calendar.WEDNESDAY, Calendar.THURSDAY, Calendar.FRIDAY, Calendar.SATURDAY)
-    enum class DOTW { Sun, Mon, Tues, Wed, Thurs, Fri, Sat }
-
     override fun isPayDay(payDate: Date): Boolean
     {
         val cal = Calendar.getInstance().apply {
@@ -133,12 +128,27 @@ class BiweeklySchedule : PaymentSchedule()
         }
 
         // 1st, find the payDays..
-        cal.set(Calendar.DAY_OF_WEEK_IN_MONTH, 1)
-        val dateFormat = SimpleDateFormat("MM/dd/yyyy hh:mm:ss a", Locale.US)
-        val dateStr = dateFormat.format(cal.time)
-        //val dotw = cal.get(Calendar.DAY_OF_WEEK)
+        cal.set(Calendar.DATE, 1)
+        debug("First Day of Month is ${dateFormat.format(cal.time)}")
 
-        TODO("needs implementation")
+        val num2Add = when(val dotw = cal.get(Calendar.DAY_OF_WEEK)) {
+            in Calendar.SUNDAY..Calendar.THURSDAY -> (6 - dotw)
+            Calendar.FRIDAY -> 0
+            else -> 6
+        }
+
+        cal.add(Calendar.DAY_OF_MONTH, num2Add+7)
+        val secondFri = cal.time
+
+        cal.add(Calendar.DAY_OF_MONTH, 14)
+        val fourthFri = cal.time
+
+        // test if date is equal to the 2nd or 4th Friday of the month
+        return (payDate == secondFri || payDate == fourthFri)
+    }
+
+    companion object {
+        private val dateFormat = SimpleDateFormat("EE, MM/dd/yyyy", Locale.US)
     }
 }
 
@@ -227,24 +237,59 @@ data class HourlyClassification(val hourlyRate: Float) : PaymentClassification()
 /**
  * 2c. Commissioned - [CommissionedClassification]
  */
-data class SalesReceipt(val date: Long, val amount: Float)
+data class SalesReceipt(val date: Date, val amount: Float)
 
 data class CommissionedClassification(val commissionRate: Float, val salary: Float) : PaymentClassification()
 {
-    private val salesReceipts: MutableMap<Long, SalesReceipt> = mutableMapOf()
+    private val salesReceipts: MutableMap<Date, SalesReceipt> = mutableMapOf()
+
     fun addSalesReceipt(salesReceipt: SalesReceipt)
     {
         salesReceipts[salesReceipt.date] = salesReceipt
     }
 
-    fun getSalesReceipt(date: Long): SalesReceipt?
+    fun getSalesReceipt(date: Date): SalesReceipt?
     {
         return salesReceipts[date]
     }
 
     override fun calculatePay(pc: Paycheck): Float
     {
-        TODO("not implemented")
+        var totalPay = salary
+        val payPeriod = pc.payDate
+
+        salesReceipts.forEach {
+            val sr = it.value
+            if (isInPayPeriod(sr, payPeriod))
+            {
+                totalPay += calculatePayForSalesReceipts(sr)
+            }
+        }
+        return totalPay
+    }
+
+    private fun isInPayPeriod(sr: SalesReceipt, payPeriod: Date): Boolean
+    {
+        val cal = Calendar.getInstance().apply {
+            time = payPeriod
+            add(Calendar.DATE, -14)
+        }
+
+        val payPeriodStartDate = cal.time
+        val payPeriodEndDate = payPeriod
+
+        val salesReceiptDate = sr.date
+
+        // this doesn't catch if timeCardDate is exactly equal to 1 of the edge cases
+        //return timeCardDate.after(payPeriodStartDate) && timeCardDate.before(payPeriodEndDate)
+
+        // this will work even if timeCardDate is equal to one of the edge cases!
+        return !(salesReceiptDate.before(payPeriodStartDate) || salesReceiptDate.after(payPeriodEndDate))
+    }
+
+    private fun calculatePayForSalesReceipts(sr: SalesReceipt): Float
+    {
+        return sr.amount * commissionRate
     }
 }
 
