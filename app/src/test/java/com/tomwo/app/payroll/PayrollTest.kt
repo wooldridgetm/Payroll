@@ -486,7 +486,7 @@ class PayrollTest
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
-        validateHourlyPaycheck(pt, empId, payDate,0.0f)
+        validatePaycheck(pt, empId, payDate,0.0f)
     }
 
     @Test
@@ -502,7 +502,7 @@ class PayrollTest
 
         val pt = PaydayTransaction(df.parse("11/9/2001"))
         pt.execute()
-        validateHourlyPaycheck(pt, empId, payDate, 30.5f)
+        validatePaycheck(pt, empId, payDate, 30.5f)
     }
 
     @Test
@@ -517,7 +517,7 @@ class PayrollTest
 
         val pt = PaydayTransaction(payDate)
         pt.execute()
-        validateHourlyPaycheck(pt, empId, payDate, (8 + 1.5f) * 15.25f)
+        validatePaycheck(pt, empId, payDate, (8 + 1.5f) * 15.25f)
     }
 
     @Test
@@ -553,7 +553,7 @@ class PayrollTest
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
-        validateHourlyPaycheck(pt, empId, payDate, 7*15.25f)
+        validatePaycheck(pt, empId, payDate, 7*15.25f)
     }
 
     @Test
@@ -574,26 +574,25 @@ class PayrollTest
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
-        validateHourlyPaycheck(pt, empId, payDate, 2*15.25f)
+        validatePaycheck(pt, empId, payDate, 2*15.25f)
     }
 
-
     // utility function for testing hourly employees!
-    private fun validateHourlyPaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, pay: Float)
+    private fun validatePaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, grossPay: Float, deductions: Float? = null, netPay: Float? = null)
     {
         val pc = pt.getPaycheck(empId)
         assertThat(pc).isNotNull()
 
+        val np = netPay ?: grossPay
+        val dd = deductions ?: 0.0f
         pc?.let {
             assertThat(it.payDate).isEqualTo(payDate)
-            assertThat(it.grossPay).isWithin(slop).of(pay)
+            assertThat(it.grossPay).isWithin(slop).of(grossPay)
             assertThat(it.getField("Disposition")).isEqualTo("Hold")
-            assertThat(it.deductions).isWithin(slop).of(0.0f)
-            assertThat(it.netPay).isWithin(slop).of(pay)
+            assertThat(it.deductions).isWithin(slop).of(dd)
+            assertThat(it.netPay).isWithin(slop).of(np)
         }
     }
-
-    private fun validateCommissionPaycheck(pt: PaydayTransaction, empId: Int, payDate: Date, pay: Float) = validateHourlyPaycheck(pt, empId, payDate, pay)
 
     /**
      * Commissioned Employees
@@ -617,7 +616,7 @@ class PayrollTest
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
-        validateCommissionPaycheck(pt, empId, payDate, 567_922f)
+        validatePaycheck(pt, empId, payDate, 567_922f)
     }
 
     @Test
@@ -631,7 +630,7 @@ class PayrollTest
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
-        validateCommissionPaycheck(pt, empId, payDate, 567_922f)
+        validatePaycheck(pt, empId, payDate, 567_922f)
     }
 
     @Test
@@ -648,7 +647,7 @@ class PayrollTest
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
-        validateCommissionPaycheck(pt, empId, payDate, 4_000f + (1_000f * 3.4f))
+        validatePaycheck(pt, empId, payDate, 4_000f + (1_000f * 3.4f))
     }
 
     @Test
@@ -666,7 +665,7 @@ class PayrollTest
         val pt = PaydayTransaction(payDate)
         pt.execute()
 
-        validateCommissionPaycheck(pt, empId, payDate, 4_000f + (1_000f * 3.4f))
+        validatePaycheck(pt, empId, payDate, 4_000f + (1_000f * 3.4f))
     }
 
     /**
@@ -676,6 +675,44 @@ class PayrollTest
     fun `test Salaried UnionMemberDues`()
     {
         val empId = 1
+        val t = AddSalariedEmployee(empId, "Bob","Home", 1_000f)
+        t.execute()
+
+        val memberId = 7734
+        val cmt = ChangeUnionMemberTransaction(empId, memberId, 9.42f)
+        cmt.execute()
+
+        val payDate = df.parse("11/30/2001")
+        val pt = PaydayTransaction(payDate)
+        pt.execute()
+
+        val numOfFridays = xDaysInMonth(payDate, Calendar.FRIDAY)
+        validatePaycheck(pt, empId, payDate, 1000f, numOfFridays*9.42f, 1000f - numOfFridays*9.42f)
+    }
+
+    /**
+     * Fx [xDaysInMonth]
+     *
+     * @param [d]]
+     * @param [dotw]
+     */
+    private fun xDaysInMonth(d: Date, dotw: Int) : Int
+    {
+        var num = 0
+        val cal = Calendar.getInstance().apply {
+            time = d
+        }
+        val maxDayInMonth = cal.getActualMaximum(Calendar.DATE)
+        for (i in 1..maxDayInMonth)
+        {
+            cal.set(Calendar.DAY_OF_MONTH, i)
+            val currentDay = cal.get(Calendar.DAY_OF_WEEK)
+            if (currentDay == dotw)
+            {
+                num++
+            }
+        }
+        return num
     }
 
 

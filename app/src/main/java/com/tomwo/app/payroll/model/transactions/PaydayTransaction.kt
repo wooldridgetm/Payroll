@@ -19,7 +19,7 @@ class PaydayTransaction(private val payDate: Date) : Transaction
             e?.let {
                 if (it.isPayDate(payDate))
                 {
-                    val pc = Paycheck(payDate, empId)
+                    val pc = Paycheck(it.getPayPeriodStartDate(payDate), payDate, empId)
                     payChecks[empId] = pc
                     it.payDay(pc)
                 }

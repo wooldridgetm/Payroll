@@ -23,10 +23,18 @@ data class Employee(val empId: Int, val address: String, val name: String, val c
         pc.deductions = deductions
         pc.netPay = netPay
     }
+
+    fun getPayPeriodStartDate(payPeriodEndDate: Date): Date
+    {
+        return schedule.getPayPeriodStartDate(payPeriodEndDate)
+    }
 }
 
-data class Paycheck(val payDate: Date, val empId: Int)
+data class Paycheck(val payPeriodStartDate: Date, val payDate: Date, val empId: Int)
 {
+    val payPeriodEndDate: Date
+        get() = payDate
+
     var grossPay: Float = 0f
     var netPay: Float = 0f
     var deductions: Float = 0f
@@ -90,6 +98,8 @@ data class MailMethod(val address: String) : PaymentMethod()
 abstract class PaymentSchedule
 {
     abstract fun isPayDay(payDate: Date): Boolean
+
+    abstract fun getPayPeriodStartDate(d: Date): Date
 }
 
 class MonthlySchedule : PaymentSchedule()
@@ -106,8 +116,16 @@ class MonthlySchedule : PaymentSchedule()
         val m2 = cal.get(Calendar.MONTH)
         return (m1 != m2)
     }
-}
 
+    override fun getPayPeriodStartDate(d: Date): Date
+    {
+        val cal = Calendar.getInstance().apply {
+            time = d
+        }
+        cal.set(Calendar.DATE, 1)
+        return cal.time
+    }
+}
 class WeeklySchedule : PaymentSchedule()
 {
     override fun isPayDay(payDate: Date): Boolean
@@ -117,20 +135,56 @@ class WeeklySchedule : PaymentSchedule()
         debug("dotw: $dotw")
         return dotw == "Fri"
     }
-}
 
-class BiweeklySchedule : PaymentSchedule()
-{
-    override fun isPayDay(payDate: Date): Boolean
+    override fun getPayPeriodStartDate(d: Date): Date
     {
         val cal = Calendar.getInstance().apply {
-            time = payDate
+            time = d
+        }
+        cal.add(Calendar.DATE, -5)
+        return cal.time
+    }
+}
+class BiweeklySchedule : PaymentSchedule()
+{
+    companion object
+    {
+        private val dateFormat = SimpleDateFormat("EE, MM/dd/yyyy", Locale.US)
+    }
+
+    override fun isPayDay(payDate: Date): Boolean
+    {
+        val fridays = get2ndAnd4thFri(payDate)
+
+        // test if date is equal to the 2nd or 4th Friday of the month
+        return (payDate == fridays.first || payDate == fridays.second)
+    }
+
+    override fun getPayPeriodStartDate(d: Date): Date
+    {
+        val cal = Calendar.getInstance().apply {
+            time = d
+        }
+        val fridays = get2ndAnd4thFri(d)
+        if (d == fridays.first)
+        {
+            cal.set(Calendar.DATE, 1)
+            return cal.time
         }
 
-        // 1st, find the payDays..
-        cal.set(Calendar.DATE, 1)
-        debug("First Day of Month is ${dateFormat.format(cal.time)}")
+        cal.time = fridays.first
+        cal.add(Calendar.DATE, 3);
+        return cal.time
+    }
 
+    private fun get2ndAnd4thFri(d: Date): Pair<Date, Date>
+    {
+        val cal = Calendar.getInstance().apply {
+            time = d
+        }
+
+        cal.set(Calendar.DATE, 1)
+        debug("1st day of the month is ${dateFormat.format(cal.time)}")
         val num2Add = when(val dotw = cal.get(Calendar.DAY_OF_WEEK)) {
             in Calendar.SUNDAY..Calendar.THURSDAY -> (6 - dotw)
             Calendar.FRIDAY -> 0
@@ -143,27 +197,26 @@ class BiweeklySchedule : PaymentSchedule()
         cal.add(Calendar.DAY_OF_MONTH, 14)
         val fourthFri = cal.time
 
-        // test if date is equal to the 2nd or 4th Friday of the month
-        return (payDate == secondFri || payDate == fourthFri)
-    }
-
-    companion object {
-        private val dateFormat = SimpleDateFormat("EE, MM/dd/yyyy", Locale.US)
+        return Pair(secondFri, fourthFri)
     }
 }
 
 
 /**
- * 2. Payment Type
+ * 2. PaymentClassification
  */
 abstract class PaymentClassification
 {
     abstract fun calculatePay(pc: Paycheck): Float
-}
 
-/**
- * 2a. Salary
- */
+    fun isInPayPeriod(d: Date, pc: Paycheck): Boolean
+    {
+        val payPeriodEndDate = pc.payPeriodEndDate
+        val payPeriodStartDate = pc.payPeriodStartDate
+
+        return !(d.before(payPeriodStartDate) || d.after(payPeriodEndDate))
+    }
+}
 data class SalariedClassification(val salary: Float) : PaymentClassification()
 {
     override fun calculatePay(pc: Paycheck): Float
@@ -172,11 +225,7 @@ data class SalariedClassification(val salary: Float) : PaymentClassification()
     }
 }
 
-/**
- * 2b. Hourly - [HourlyClassification]
- */
 data class TimeCard(val date: Date, val hours: Float)
-
 data class HourlyClassification(val hourlyRate: Float) : PaymentClassification()
 {
     //val getTimeCard: TimeCard = object : TimeCard{}
@@ -195,34 +244,15 @@ data class HourlyClassification(val hourlyRate: Float) : PaymentClassification()
     override fun calculatePay(pc: Paycheck): Float
     {
         var totalPay = 0f
-        val payPeriod = pc.payDate
 
         timeCards.forEach {
             val tc = it.value
-            if (isInPayPeriod(tc, payPeriod))
+            if (isInPayPeriod(tc.date, pc))
             {
                 totalPay += calculatePayForTimeCard(tc)
             }
         }
         return totalPay
-    }
-
-    private fun isInPayPeriod(tc: TimeCard, payPeriod: Date): Boolean
-    {
-        val cal = Calendar.getInstance()
-        cal.time = payPeriod
-        cal.add(Calendar.DAY_OF_MONTH, -5)
-
-        val payPeriodStartDate = cal.time
-        val payPeriodEndDate = payPeriod
-
-        val timeCardDate = tc.date
-
-        // this doesn't catch if timeCardDate is exactly equal to 1 of the edge cases
-        //return timeCardDate.after(payPeriodStartDate) && timeCardDate.before(payPeriodEndDate)
-
-        // this will work even if timeCardDate is equal to one of the edge cases!
-        return !(timeCardDate.before(payPeriodStartDate) || timeCardDate.after(payPeriodEndDate))
     }
 
     private fun calculatePayForTimeCard(tc: TimeCard): Float
@@ -234,11 +264,7 @@ data class HourlyClassification(val hourlyRate: Float) : PaymentClassification()
     }
 }
 
-/**
- * 2c. Commissioned - [CommissionedClassification]
- */
 data class SalesReceipt(val date: Date, val amount: Float)
-
 data class CommissionedClassification(val commissionRate: Float, val salary: Float) : PaymentClassification()
 {
     private val salesReceipts: MutableMap<Date, SalesReceipt> = mutableMapOf()
@@ -256,35 +282,15 @@ data class CommissionedClassification(val commissionRate: Float, val salary: Flo
     override fun calculatePay(pc: Paycheck): Float
     {
         var totalPay = salary
-        val payPeriod = pc.payDate
 
         salesReceipts.forEach {
             val sr = it.value
-            if (isInPayPeriod(sr, payPeriod))
+            if (isInPayPeriod(sr.date, pc))
             {
                 totalPay += calculatePayForSalesReceipts(sr)
             }
         }
         return totalPay
-    }
-
-    private fun isInPayPeriod(sr: SalesReceipt, payPeriod: Date): Boolean
-    {
-        val cal = Calendar.getInstance().apply {
-            time = payPeriod
-            add(Calendar.DATE, -14)
-        }
-
-        val payPeriodStartDate = cal.time
-        val payPeriodEndDate = payPeriod
-
-        val salesReceiptDate = sr.date
-
-        // this doesn't catch if timeCardDate is exactly equal to 1 of the edge cases
-        //return timeCardDate.after(payPeriodStartDate) && timeCardDate.before(payPeriodEndDate)
-
-        // this will work even if timeCardDate is equal to one of the edge cases!
-        return !(salesReceiptDate.before(payPeriodStartDate) || salesReceiptDate.after(payPeriodEndDate))
     }
 
     private fun calculatePayForSalesReceipts(sr: SalesReceipt): Float
@@ -293,17 +299,19 @@ data class CommissionedClassification(val commissionRate: Float, val salary: Flo
     }
 }
 
-
+/**
+ * Affiliation
+ */
 abstract class Affiliation
 {
     abstract fun calculateDeductions(pc: Paycheck): Float
 }
-
 class NoAffiliation : Affiliation()
 {
     override fun calculateDeductions(pc: Paycheck) = 0F
 }
 
+data class ServiceCharge(val date: Long, val amount: Float)
 data class UnionAffiliation(val memberId: Int, val dues: Float) : Affiliation()
 {
     private val serviceCharges: MutableMap<Long, ServiceCharge> = mutableMapOf()
@@ -320,12 +328,37 @@ data class UnionAffiliation(val memberId: Int, val dues: Float) : Affiliation()
 
     override fun calculateDeductions(pc: Paycheck): Float
     {
-        TODO("not implemented")
+        val fridays = numberOfFridaysInPayPeriod(pc.payPeriodStartDate, pc.payPeriodEndDate)
+        val total = dues*fridays
+        debug("total deductions: $total")
+        return total
+    }
+
+    private fun numberOfFridaysInPayPeriod(payPeriodStart :Date, payPeriodEnd: Date): Int
+    {
+        val cal = Calendar.getInstance().apply {
+            time = payPeriodStart
+        }
+        val start = cal.get(Calendar.DATE)
+        cal.time = payPeriodEnd
+        val end = cal.get(Calendar.DATE)
+
+        var fridays = 0
+        for(i in start..end)
+        {
+            cal.set(Calendar.DATE, i)
+            val dotw = cal.get(Calendar.DAY_OF_WEEK)
+
+            if (dotw == Calendar.FRIDAY) {
+                fridays++
+            }
+        }
+
+        return fridays
     }
 }
 
 
-data class ServiceCharge(val date: Long, val amount: Float)
 
 
 
