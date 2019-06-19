@@ -1,1 +1,1 @@
-include ':app', ':logextensions'
+include ':app', ':logextensions', ':payroll2'
